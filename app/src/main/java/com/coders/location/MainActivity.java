@@ -7,9 +7,11 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Bundle;
+
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.appcompat.app.AppCompatActivity;
+
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -24,7 +26,7 @@ import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
 
-    private FusedLocationProviderClient mFusedLocationClient;
+    private FusedLocationProviderClient fusedLocationProviderClient;
 
     private double wayLatitude = 0.0, wayLongitude = 0.0;
     private LocationRequest locationRequest;
@@ -47,7 +49,9 @@ public class MainActivity extends AppCompatActivity {
         this.txtLocation = (TextView) findViewById(R.id.txtLocation);
         this.btnLocation = (Button) findViewById(R.id.btnLocation);
 
-        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+        stringBuilder = new StringBuilder();
+
+        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
 
         locationRequest = LocationRequest.create();
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
@@ -81,8 +85,8 @@ public class MainActivity extends AppCompatActivity {
                             stringBuilder.append("\n\n");
                             txtContinueLocation.setText(stringBuilder.toString());
                         }
-                        if (!isContinue && mFusedLocationClient != null) {
-                            mFusedLocationClient.removeLocationUpdates(locationCallback);
+                        if (!isContinue && fusedLocationProviderClient != null) {
+                            fusedLocationProviderClient.removeLocationUpdates(locationCallback);
                         }
                     }
                 }
@@ -105,31 +109,38 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
             isContinue = true;
-            stringBuilder = new StringBuilder();
             getLocation();
         });
     }
 
     private void getLocation() {
         if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
-                && ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION},
-                    AppConstants.LOCATION_REQUEST);
+                && ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+        {
+            ActivityCompat.requestPermissions(
+                    MainActivity.this,
+                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION},
+                    AppConstants.LOCATION_REQUEST
+            );
 
         } else {
-            if (isContinue) {
-                mFusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null);
-            } else {
-                mFusedLocationClient.getLastLocation().addOnSuccessListener(MainActivity.this, location -> {
-                    if (location != null) {
-                        wayLatitude = location.getLatitude();
-                        wayLongitude = location.getLongitude();
-                        txtLocation.setText(String.format(Locale.US, "%s - %s", wayLatitude, wayLongitude));
-                    } else {
-                        mFusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null);
-                    }
-                });
-            }
+            sendMyLocationRequest();
+        }
+    }
+
+    private void sendMyLocationRequest() {
+        if (isContinue) {
+            fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallback, null);
+        } else {
+            fusedLocationProviderClient.getLastLocation().addOnSuccessListener(MainActivity.this, location -> {
+                if (location != null) {
+                    wayLatitude = location.getLatitude();
+                    wayLongitude = location.getLongitude();
+                    txtLocation.setText(String.format(Locale.US, "%s - %s", wayLatitude, wayLongitude));
+                } else {
+                    fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallback, null);
+                }
+            });
         }
     }
 
@@ -140,22 +151,9 @@ public class MainActivity extends AppCompatActivity {
         switch (requestCode) {
             case 1000: {
                 // If request is cancelled, the result arrays are empty.
-                if (grantResults.length > 0
-                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 
-                    if (isContinue) {
-                        mFusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null);
-                    } else {
-                        mFusedLocationClient.getLastLocation().addOnSuccessListener(MainActivity.this, location -> {
-                            if (location != null) {
-                                wayLatitude = location.getLatitude();
-                                wayLongitude = location.getLongitude();
-                                txtLocation.setText(String.format(Locale.US, "%s - %s", wayLatitude, wayLongitude));
-                            } else {
-                                mFusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null);
-                            }
-                        });
-                    }
+                    sendMyLocationRequest();
                 } else {
                     Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show();
                 }
